@@ -38,3 +38,39 @@ This automates the process of deploying approved changes from GitHub to S3.
 ## Architecture Decision
 
 S3 and CloudFront are preferred over EC2 because this application is a static website and does not require a continuously running server. S3 provides object storage while CloudFront distributes the content globally through edge locations.
+
+flowchart TD
+    U[User / Browser] -->|HTTPS| CF[Amazon CloudFront]
+    
+    CF -->|Signed Request| OAC[Origin Access Control]
+    
+    OAC --> S3[Private Amazon S3 Bucket]
+    
+    S3 --> HTML[index.html]
+    S3 --> CSS[style.css]
+    S3 --> JS[script.js]
+    
+    GIT[GitHub Repository] --> DEV[Developer]
+    DEV --> S3
+
+## Architecture Decisions
+
+### Why S3?
+
+Amazon S3 provides durable object storage for the static website assets.
+
+### Why CloudFront?
+
+CloudFront provides CDN distribution and caching, reducing latency for users.
+
+### Why OAC?
+
+Origin Access Control allows CloudFront to securely retrieve objects from the private S3 bucket without making the bucket publicly accessible.
+
+### Why HTTPS?
+
+HTTPS protects traffic between the user's browser and CloudFront.
+
+### Why keep S3 private?
+
+Direct public access to the S3 bucket is unnecessary because CloudFront acts as the public delivery layer.
