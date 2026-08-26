@@ -35,25 +35,25 @@ This stores the source code and provides version control.
 
 This automates the process of deploying approved changes from GitHub to S3.
 
-## Architecture Decision
+## Architecture Overview
 
 S3 and CloudFront are preferred over EC2 because this application is a static website and does not require a continuously running server. S3 provides object storage while CloudFront distributes the content globally through edge locations.
 
+```mermaid
 flowchart TD
     U[User / Browser] -->|HTTPS| CF[Amazon CloudFront]
-    
     CF -->|Signed Request| OAC[Origin Access Control]
-    
     OAC --> S3[Private Amazon S3 Bucket]
-    
+
     S3 --> HTML[index.html]
     S3 --> CSS[style.css]
     S3 --> JS[script.js]
-    
+
     GIT[GitHub Repository] --> DEV[Developer]
     DEV --> S3
+```
 
-## Architecture Decisions
+## Architecture Overview
 
 ### Why S3?
 
