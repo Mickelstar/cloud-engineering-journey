@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'apps/cloud-engineer-web/**'
+      - 'labs/apps/cloud-engineer-web/**'
       - '.github/workflows/ecr-build-push.yml'
   workflow_dispatch:
 
@@ -40,7 +40,7 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
-          context: ./apps/cloud-engineer-web
+          context: ./labs/apps/cloud-engineer-web
           push: true
           tags: |
             483997780704.dkr.ecr.eu-north-1.amazonaws.com/cloud-engineer-web:${{ github.sha }}
