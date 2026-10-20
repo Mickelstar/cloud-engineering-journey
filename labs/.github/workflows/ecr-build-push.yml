@@ -1,12 +1,12 @@
 
-name: Build and Push Docker Image to ECR
+name: Build, Push and Deploy to ECS
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'apps/cloud-engineer-web/**'
+      - 'labs/apps/cloud-engineer-web/**'
       - '.github/workflows/ecr-build-push.yml'
   workflow_dispatch:
 
@@ -17,10 +17,14 @@ permissions:
 env:
   AWS_REGION: eu-north-1
   ECR_REPOSITORY: cloud-engineer-web
+  ECS_CLUSTER: CloudEngineer-ECS-Cluster
+  ECS_TASK_FAMILY: CloudEngineer-Web-Task
+  ECS_SUBNET: subnet-04e0533da95975515
+  ECS_SECURITY_GROUP: sg-0ec4c8cf1ba60591f
 
 jobs:
-  build-and-push:
-    name: Build and Push
+  build-push-deploy:
+    name: Build, Push and Deploy
     runs-on: ubuntu-latest
 
     steps:
@@ -40,8 +44,106 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
-          context: ./apps/cloud-engineer-web
+          context: ./labs/apps/cloud-engineer-web
           push: true
           tags: |
             483997780704.dkr.ecr.eu-north-1.amazonaws.com/cloud-engineer-web:${{ github.sha }}
             483997780704.dkr.ecr.eu-north-1.amazonaws.com/cloud-engineer-web:latest
+
+      - name: Register updated ECS task definition
+        shell: bash
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition \
+            --output json > current-task-definition.json
+
+          jq --arg IMAGE \
+            "483997780704.dkr.ecr.eu-north-1.amazonaws.com/$ECR_REPOSITORY:$GITHUB_SHA" \
+            '.taskDefinition // . |
+             {
+               family,
+               taskRoleArn,
+               executionRoleArn,
+               networkMode,
+               containerDefinitions:
+                 (.containerDefinitions |
+                  map(if .name == "cloud-engineer-web"
+                      then .image = $IMAGE
+                      else .
+                      end)),
+               volumes: (.volumes // []),
+               placementConstraints: (.placementConstraints // []),
+               requiresCompatibilities,
+               cpu,
+               memory,
+               pidMode,
+               ipcMode,
+               proxyConfiguration,
+               inferenceAccelerators,
+               ephemeralStorage,
+               runtimePlatform
+             } |
+             with_entries(select(.value != null))' \
+            current-task-definition.json > new-task-definition.json
+
+          aws ecs register-task-definition \
+            --cli-input-json file://new-task-definition.json \
+            --query 'taskDefinition.revision' \
+            --output text
+
+      - name: Launch Fargate task
+        shell: bash
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --launch-type FARGATE \
+            --network-configuration \
+              "awsvpcConfiguration={subnets=[$ECS_SUBNET],securityGroups=[$ECS_SECURITY_GROUP],assignPublicIp=ENABLED}" \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" = "None" ]; then
+            echo "ECS did not return a task ARN."
+            exit 1
+          fi
+
+          echo "TASK_ARN=$TASK_ARN" >> "$GITHUB_ENV"
+          echo "Launched task: $TASK_ARN"
+
+      - name: Verify task starts
+        shell: bash
+        run: |
+          for attempt in {1..24}; do
+            STATUS=$(aws ecs describe-tasks \
+              --cluster "$ECS_CLUSTER" \
+              --tasks "$TASK_ARN" \
+              --query 'tasks[0].lastStatus' \
+              --output text)
+
+            echo "Task status: $STATUS"
+
+            if [ "$STATUS" = "RUNNING" ]; then
+              echo "Fargate task is running."
+              exit 0
+            fi
+
+            if [ "$STATUS" = "STOPPED" ] || [ "$STATUS" = "None" ]; then
+              aws ecs describe-tasks \
+                --cluster "$ECS_CLUSTER" \
+                --tasks "$TASK_ARN" \
+                --query 'tasks[0].{Status:lastStatus,Reason:stoppedReason,Containers:containers[*].{Name:name,Reason:reason,ExitCode:exitCode}}' \
+                --output json
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "Task did not reach RUNNING within four minutes."
+          aws ecs describe-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$TASK_ARN" \
+            --output json
+          exit 1
