@@ -1,5 +1,5 @@
 
-name: Build and Push Docker Image to ECR
+name: Build, Push and Deploy to ECS
 
 on:
   push:
@@ -16,11 +16,16 @@ permissions:
 
 env:
   AWS_REGION: eu-north-1
+  AWS_ACCOUNT_ID: '483997780704'
   ECR_REPOSITORY: cloud-engineer-web
+  ECS_CLUSTER: CloudEngineer-ECS-Cluster
+  ECS_TASK_FAMILY: CloudEngineer-Web-Task
+  ECS_SUBNET: subnet-04e0533da95975515
+  ECS_SECURITY_GROUP: sg-0ec4c8cf1ba60591f
 
 jobs:
-  build-and-push:
-    name: Build and Push
+  build-push-deploy:
+    name: Build, Push and Deploy
     runs-on: ubuntu-latest
 
     steps:
@@ -34,10 +39,9 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: ./labs/apps/cloud-engineer-web
@@ -45,3 +49,131 @@ jobs:
           tags: |
             483997780704.dkr.ecr.eu-north-1.amazonaws.com/cloud-engineer-web:${{ github.sha }}
             483997780704.dkr.ecr.eu-north-1.amazonaws.com/cloud-engineer-web:latest
+
+      - name: Register updated ECS task definition
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${GITHUB_SHA}"
+
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition \
+            --output json > current-task-definition.json
+
+          jq --arg IMAGE "$IMAGE" '
+            {
+              family: .family,
+              taskRoleArn: .taskRoleArn,
+              executionRoleArn: .executionRoleArn,
+              networkMode: .networkMode,
+              containerDefinitions: (
+                .containerDefinitions |
+                map(
+                  if .name == "cloud-engineer-web"
+                  then .image = $IMAGE
+                  else .
+                  end
+                )
+              ),
+              volumes: (.volumes // []),
+              placementConstraints: (.placementConstraints // []),
+              requiresCompatibilities: .requiresCompatibilities,
+              cpu: .cpu,
+              memory: .memory,
+              pidMode: .pidMode,
+              ipcMode: .ipcMode,
+              proxyConfiguration: .proxyConfiguration,
+              inferenceAccelerators: .inferenceAccelerators,
+              ephemeralStorage: .ephemeralStorage,
+              runtimePlatform: .runtimePlatform
+            } |
+            with_entries(select(.value != null))
+          ' current-task-definition.json > new-task-definition.json
+
+          jq -e '
+            any(.containerDefinitions[];
+              .name == "cloud-engineer-web")
+          ' new-task-definition.json > /dev/null
+
+          REVISION=$(aws ecs register-task-definition \
+            --cli-input-json file://new-task-definition.json \
+            --query 'taskDefinition.revision' \
+            --output text)
+
+          echo "Registered task definition revision: $REVISION"
+          echo "TASK_DEFINITION=${ECS_TASK_FAMILY}:${REVISION}" >> "$GITHUB_ENV"
+
+      - name: Launch Fargate task
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RESULT=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition "$TASK_DEFINITION" \
+            --launch-type FARGATE \
+            --network-configuration \
+              "awsvpcConfiguration={subnets=[$ECS_SUBNET],securityGroups=[$ECS_SECURITY_GROUP],assignPublicIp=ENABLED}" \
+            --output json)
+
+          echo "$RESULT" | jq .
+
+          FAILURE_COUNT=$(echo "$RESULT" | jq '.failures | length')
+          TASK_ARN=$(echo "$RESULT" | jq -r '.tasks[0].taskArn // empty')
+
+          if [ "$FAILURE_COUNT" -gt 0 ] || [ -z "$TASK_ARN" ]; then
+            echo "ECS failed to launch the task."
+            exit 1
+          fi
+
+          echo "TASK_ARN=$TASK_ARN" >> "$GITHUB_ENV"
+          echo "Launched task: $TASK_ARN"
+
+      - name: Verify task starts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..30}; do
+            TASK=$(aws ecs describe-tasks \
+              --cluster "$ECS_CLUSTER" \
+              --tasks "$TASK_ARN" \
+              --output json)
+
+            STATUS=$(echo "$TASK" | jq -r '.tasks[0].lastStatus // "UNKNOWN"')
+            echo "Attempt $attempt — task status: $STATUS"
+
+            if [ "$STATUS" = "RUNNING" ]; then
+              echo "$TASK" | jq '{
+                taskArn: .tasks[0].taskArn,
+                lastStatus: .tasks[0].lastStatus,
+                taskDefinitionArn: .tasks[0].taskDefinitionArn,
+                containers: [.tasks[0].containers[] |
+                  {name, lastStatus, healthStatus}]
+              }'
+              echo "Fargate task reached RUNNING."
+              exit 0
+            fi
+
+            if [ "$STATUS" = "STOPPED" ] || [ "$STATUS" = "UNKNOWN" ]; then
+              echo "$TASK" | jq '{
+                failures: .failures,
+                stoppedReason: .tasks[0].stoppedReason,
+                containers: [.tasks[0].containers[] |
+                  {name, reason, exitCode}]
+              }'
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "Task did not reach RUNNING within five minutes."
+          aws ecs describe-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].{Status:lastStatus,Reason:stoppedReason,Containers:containers[*].{Name:name,Reason:reason,ExitCode:exitCode}}' \
+            --output json
+          exit 1
