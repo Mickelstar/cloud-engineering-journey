@@ -1,0 +1,11 @@
+﻿url,label
+https://example.com,benign
+https://www.example.org,benign
+https://docs.example.com/guide,benign
+https://shop.example.net/products,benign
+https://example.com/account,benign
+http://192.0.2.10/login,phishing
+http://198.51.100.7/verify,phishing
+https://example.com/verify-account,phishing
+https://secure.example.net/password,phishing
+http://example.org/update-wallet,phishing
