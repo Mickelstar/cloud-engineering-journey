@@ -6,7 +6,7 @@
 
 # 
 
-# \*\*Repository:\*\* \[cloud-engineering-journey](https://github.com/Mickelstar/cloud-engineering-journey)
+# Repository: \[cloud-engineering-journey](https://github.com/Mickelstar/cloud-engineering-journey)
 
 # 
 
@@ -14,17 +14,17 @@
 
 # 
 
-# \- \*\*AWS:\*\* EC2, VPC, S3, IAM, ECS, Fargate, ECR, CloudWatch, CloudTrail, Systems Manager, CloudFormation
+# \- AWS: EC2, VPC, S3, IAM, ECS, Fargate, ECR, CloudWatch, CloudTrail, Systems Manager, CloudFormation
 
-# \- \*\*Containers:\*\* Docker, image security, Amazon ECR
+# \- Containers: Docker, image security, Amazon ECR
 
-# \- \*\*CI/CD:\*\* GitHub Actions, automated image build and push workflows
+# \- CI/CD: GitHub Actions, automated image build and push workflows
 
-# \- \*\*Programming:\*\* Python, Bash/PowerShell
+# \- Programming: Python, Bash/PowerShell
 
-# \- \*\*Monitoring \& Security:\*\* CloudWatch metrics and logs, IAM policy reviews, CloudTrail investigations, container security
+# \- Monitoring \& Security: CloudWatch metrics and logs, IAM policy reviews, CloudTrail investigations, container security
 
-# \- \*\*Infrastructure as Code:\*\* AWS CloudFormation
+# \- Infrastructure as Code: AWS CloudFormation
 
 # 
 
