@@ -32,37 +32,35 @@
 
 # 
 
-# | Project / Lab | What I Practised |
+# | Project/Lab | What I Practised |
 
-# |---|---|
+# 
 
-# | \[Day 18 — Phishing Detector](labs/day-18-phishing-detector/) | Python application development and automated tests |
+# | Day 18 — Phishing Detector(labs/day-18-phishing-detector/) | Python application development and automated tests |
 
-# | \[Day 19 — Detector Evaluation](labs/day-19-detector-evaluation/) | Dataset evaluation and test validation |
+# | Day 19 — Detector Evaluation(labs/day-19-detector-evaluation/) | Dataset evaluation and test validation |
 
-# | \[Day 20 — Container Security](labs/day-20-container-security/) | Docker security and non-root container execution |
+# | Day 20 — Container Security(labs/day-20-container-security/) | Docker security and non-root container execution |
 
-# | \[Day 21 — ECS Deployment](labs/day-21-ecs-deployment/) | Deploying a containerized application using Amazon ECS Fargate |
+# | Day 21 — ECS Deployment(labs/day-21-ecs-deployment/) | Deploying a containerized application using Amazon ECS Fargate |
 
-# | \[Day 22 — IAM Audit](labs/day-22-iam-audit/) | Reviewing IAM roles, policies, and permissions |
+# | Day 22 — IAM Audit(labs/day-22-iam-audit/) | Reviewing IAM roles, policies, and permissions |
 
-# | \[Day 23 — Cost Hygiene](labs/day-23-cost-hygiene/) | Inspecting AWS resources for potential ongoing costs |
+# | Day 23 — Cost Hygiene(labs/day-23-cost-hygiene/) | Inspecting AWS resources for potential ongoing costs |
 
-# | \[Day 24 — CloudTrail Investigation](labs/day-24-cloudtrail-investigation/) | Investigating AWS management events |
+# | Day 24 — CloudTrail Investigation(labs/day-24-cloudtrail-investigation/) | Investigating AWS management events |
 
-# | \[Day 25 — CloudWatch Monitoring](labs/day-25-cloudwatch-monitoring/) | Alarm investigation and metric troubleshooting |
+# | Day 25 — CloudWatch Monitoring(labs/day-25-cloudwatch-monitoring/) | Alarm investigation and metric troubleshooting |
 
-# | \[Day 26 — Systems Manager](labs/day-26-systems-manager/) | Auditing EC2 Systems Manager readiness |
+# | Day 26 — Systems Manager(labs/day-26-systems-manager/) | Auditing EC2 Systems Manager readiness |
 
-# | \[Day 27 — CloudFormation](labs/day-27-cloudformation/) | Template validation and change-set review |
+# | Day 27 — CloudFormation(labs/day-27-cloudformation/) | Template validation and change-set review |
 
 # 
 
 # \## Repository Structure
 
 # 
-
-# ```text
 
 # cloud-engineering-journey/
 
@@ -85,8 +83,6 @@
 # │   └── static-site-deployment/
 
 # └── README.md
-
-# ```
 
 # 
 
@@ -120,7 +116,7 @@
 
 # 
 
-# \*\*27/30 days completed.\*\*
+# 27/30 days completed.
 
 # 
 
